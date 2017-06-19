@@ -1,0 +1,2 @@
+g++ -I/usr/local/include/opencv -I/usr/local/include/opencv2 -I/usr/local/include/aravis-0.6 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -L/usr/local/lib/ -g -o binary  gui.cpp cameraJaiGo.cpp -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_ml -lopencv_video -lopencv_features2d -lopencv_calib3d -lopencv_objdetect -lopencv_contrib -lopencv_legacy -lopencv_stitching -laravis-0.6 -lopencv_imgcodecs -lgobject-2.0 -std=c++11
+

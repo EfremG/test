@@ -1,2 +1,0 @@
-g++ -I/home/efrem/OpenCV/GUI_Stereo_and_Calib/include/opencv -I/home/efrem/OpenCV/GUI_Stereo_and_Calib/include/opencv2 -I/home/efrem/OpenCV/GUI_Stereo_and_Calib/include/aravis-0.6 -I/home/efrem/OpenCV/GUI_Stereo_and_Calib/include/glib-2.0 -L/home/efrem/OpenCV/GUI_Stereo_and_Calib/lib/ -g -o binary  gui.cpp cameraJaiGo.cpp -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_ml -lopencv_video -lopencv_features2d -lopencv_calib3d -lopencv_objdetect -lopencv_contrib -lopencv_legacy -lopencv_stitching -laravis-0.6 -lopencv_imgcodecs -lgobject-2.0 -std=c++11
-

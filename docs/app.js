@@ -556,17 +556,15 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     });
 
-    // Tab-Umschaltung
-    document.querySelectorAll(".tab-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            const tab = btn.dataset.tab;
-            document.getElementById("tab-liste").classList.toggle("hidden", tab !== "liste");
-            document.getElementById("tab-codes").classList.toggle("hidden", tab !== "codes");
-            // + Button nur bei Liste anzeigen
-            document.getElementById("btn-add").style.display = tab === "liste" ? "" : "none";
-        });
+    // Codes Modal
+    const modalCodes = document.getElementById("modal-codes");
+
+    document.getElementById("btn-codes").addEventListener("click", () => {
+        modalCodes.classList.remove("hidden");
+    });
+
+    document.getElementById("btn-codes-close").addEventListener("click", () => {
+        modalCodes.classList.add("hidden");
     });
 
     // Code-Upload
@@ -613,7 +611,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Modale schliessen bei Klick auf Hintergrund
-    [modalAdd, modalSettings].forEach(modal => {
+    [modalAdd, modalSettings, modalCodes].forEach(modal => {
         modal.addEventListener("click", (e) => {
             if (e.target === modal) {
                 modal.classList.add("hidden");

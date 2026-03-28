@@ -14,13 +14,13 @@ import { getAuth, signInAnonymously, onAuthStateChanged }
 // FIREBASE KONFIGURATION – HIER DEINE WERTE EINTRAGEN
 // ============================================================
 const firebaseConfig = {
-    apiKey: "DEIN_API_KEY",
-    authDomain: "DEIN_PROJEKT.firebaseapp.com",
-    databaseURL: "https://DEIN_PROJEKT-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "DEIN_PROJEKT",
-    storageBucket: "DEIN_PROJEKT.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "DEIN_APP_ID"
+    apiKey: "AIzaSyCUYFbtXVzFpYAjbjOfMocdPd7oVP2KEeU",
+    authDomain: "einkaufsliste-73d67.firebaseapp.com",
+    databaseURL: "https://einkaufsliste-73d67-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "einkaufsliste-73d67",
+    storageBucket: "einkaufsliste-73d67.firebasestorage.app",
+    messagingSenderId: "544769872839",
+    appId: "1:544769872839:web:d782898b4a8cac560dbfe2"
 };
 // ============================================================
 

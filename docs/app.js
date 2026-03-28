@@ -301,8 +301,8 @@ function render() {
         const catItems = groups[cat.key];
         if (!catItems || catItems.length === 0) return;
 
-        html += `<div class="section">`;
-        html += `<div class="section-header">
+        html += `<div class="section" data-cat-key="${cat.key}">`;
+        html += `<div class="section-header" data-cat-key="${cat.key}">
             <span class="category-label">
                 <span class="category-dot" style="background:${cat.color}"></span>
                 ${cat.key}
@@ -334,6 +334,7 @@ function render() {
 
     container.innerHTML = html;
     attachSwipeListeners();
+    attachSectionDrag(container);
 }
 
 function renderCodes() {
@@ -615,6 +616,131 @@ function initLongPressDrag(container) {
                 dragItem.style.top = "";
             }
             dragItem = null;
+            placeholder = null;
+            isDragging = false;
+        });
+    });
+}
+
+function attachSectionDrag(listContainer) {
+    const sections = listContainer.querySelectorAll(".section[data-cat-key]");
+    if (sections.length < 2) return;
+
+    let dragSection = null;
+    let placeholder = null;
+    let offsetY = 0;
+    let longPressTimer = null;
+    let isDragging = false;
+    let touchStartY = 0;
+
+    sections.forEach(section => {
+        const header = section.querySelector(".section-header");
+        if (!header) return;
+
+        header.addEventListener("touchstart", (e) => {
+            touchStartY = e.touches[0].clientY;
+            longPressTimer = setTimeout(() => {
+                isDragging = true;
+                dragSection = section;
+                const rect = section.getBoundingClientRect();
+                offsetY = touchStartY - rect.top;
+
+                if (navigator.vibrate) navigator.vibrate(30);
+
+                placeholder = document.createElement("div");
+                placeholder.className = "section-placeholder";
+                placeholder.style.height = rect.height + "px";
+                section.parentNode.insertBefore(placeholder, section);
+
+                dragSection.classList.add("section-dragging");
+                dragSection.style.position = "fixed";
+                dragSection.style.left = rect.left + "px";
+                dragSection.style.width = rect.width + "px";
+                dragSection.style.top = (touchStartY - offsetY) + "px";
+                dragSection.style.zIndex = "50";
+            }, 400);
+        }, { passive: true });
+
+        header.addEventListener("touchmove", (e) => {
+            const y = e.touches[0].clientY;
+            if (!isDragging) {
+                if (Math.abs(y - touchStartY) > 10) {
+                    clearTimeout(longPressTimer);
+                }
+                return;
+            }
+            e.preventDefault();
+            dragSection.style.top = (y - offsetY) + "px";
+
+            const siblings = [...listContainer.querySelectorAll(".section[data-cat-key]:not(.section-dragging)")];
+            let insertBefore = null;
+            for (const sib of siblings) {
+                const sibRect = sib.getBoundingClientRect();
+                if (y < sibRect.top + sibRect.height / 2) {
+                    insertBefore = sib;
+                    break;
+                }
+            }
+            if (insertBefore) {
+                listContainer.insertBefore(placeholder, insertBefore);
+            } else {
+                // Vor dem "Erledigt"-Bereich einfügen, falls vorhanden
+                const erledigt = listContainer.querySelector(".section:not([data-cat-key])");
+                if (erledigt) {
+                    listContainer.insertBefore(placeholder, erledigt);
+                } else {
+                    listContainer.appendChild(placeholder);
+                }
+            }
+        }, { passive: false });
+
+        header.addEventListener("touchend", () => {
+            clearTimeout(longPressTimer);
+            if (!isDragging || !dragSection) {
+                isDragging = false;
+                return;
+            }
+
+            listContainer.insertBefore(dragSection, placeholder);
+            placeholder.remove();
+
+            dragSection.classList.remove("section-dragging");
+            dragSection.style.position = "";
+            dragSection.style.left = "";
+            dragSection.style.width = "";
+            dragSection.style.top = "";
+            dragSection.style.zIndex = "";
+            dragSection = null;
+            placeholder = null;
+            isDragging = false;
+
+            // Neue Reihenfolge aus der Liste lesen
+            const visibleOrder = [...listContainer.querySelectorAll(".section[data-cat-key]")]
+                .map(el => el.dataset.catKey);
+            // Nicht sichtbare Kategorien ans Ende anhängen
+            const fullOrder = [...visibleOrder];
+            getOrderedCategories().forEach(cat => {
+                if (!fullOrder.includes(cat.key)) fullOrder.push(cat.key);
+            });
+            sortedCategories = fullOrder.map(key => CATEGORIES.find(c => c.key === key)).filter(Boolean);
+            saveCategoryOrder(fullOrder);
+            buildCategorySortList();
+            buildCategoryPicker();
+        });
+
+        header.addEventListener("touchcancel", () => {
+            clearTimeout(longPressTimer);
+            if (dragSection) {
+                listContainer.insertBefore(dragSection, placeholder);
+                placeholder.remove();
+                dragSection.classList.remove("section-dragging");
+                dragSection.style.position = "";
+                dragSection.style.left = "";
+                dragSection.style.width = "";
+                dragSection.style.top = "";
+                dragSection.style.zIndex = "";
+            }
+            dragSection = null;
             placeholder = null;
             isDragging = false;
         });

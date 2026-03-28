@@ -802,3 +802,20 @@ main {
 .section {
     animation: fadeIn 0.2s ease;
 }
+
+.section.section-dragging {
+    opacity: 0.9;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    border-radius: 12px;
+    background: var(--bg);
+}
+
+.section-placeholder {
+    background: rgba(0, 122, 255, 0.06);
+    border-radius: 12px;
+    margin-bottom: 8px;
+}
+
+.section-header[data-cat-key] {
+    cursor: grab;
+}

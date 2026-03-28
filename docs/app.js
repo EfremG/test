@@ -771,9 +771,8 @@ window._viewCode = function(id) {
 // UI Event Listeners
 // ============================================================
 document.addEventListener("DOMContentLoaded", () => {
-    // Kategorie-Picker und Sortierliste initial befüllen
+    // Kategorie-Picker initial befüllen
     buildCategoryPicker();
-    buildCategorySortList();
 
     // Artikel hinzufügen Modal
     const modalAdd = document.getElementById("modal-add");

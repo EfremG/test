@@ -620,16 +620,127 @@ function buildCategoryPicker() {
     const cats = getOrderedCategories();
     cats.forEach(cat => {
         const opt = document.createElement("div");
-        opt.className = `category-option${cat.key === selectedCategory ? " selected" : ""}`;
+        opt.className = "category-option";
+        opt.dataset.key = cat.key;
+        if (cat.key === selectedCategory) opt.classList.add("selected");
         opt.innerHTML = `<span class="cat-dot" style="background:${cat.color}"></span>
-            <span>${cat.key}</span>
+            <span class="cat-name">${cat.key}</span>
             <span class="cat-check">✓</span>`;
         opt.addEventListener("click", () => {
             selectedCategory = cat.key;
-            document.querySelectorAll(".category-option").forEach(o => o.classList.remove("selected"));
+            catList.querySelectorAll(".category-option").forEach(o => o.classList.remove("selected"));
             opt.classList.add("selected");
         });
         catList.appendChild(opt);
+    });
+
+    initPickerDrag(catList);
+}
+
+function initPickerDrag(container) {
+    let dragItem = null;
+    let placeholder = null;
+    let offsetY = 0;
+    let longPressTimer = null;
+    let isDragging = false;
+    let touchStartY = 0;
+
+    container.querySelectorAll(".category-option").forEach(item => {
+        item.addEventListener("touchstart", (e) => {
+            touchStartY = e.touches[0].clientY;
+            longPressTimer = setTimeout(() => {
+                isDragging = true;
+                dragItem = item;
+                const rect = dragItem.getBoundingClientRect();
+                offsetY = touchStartY - rect.top;
+
+                if (navigator.vibrate) navigator.vibrate(30);
+
+                placeholder = document.createElement("div");
+                placeholder.className = "drag-placeholder-picker";
+                placeholder.style.height = rect.height + "px";
+                dragItem.parentNode.insertBefore(placeholder, dragItem);
+
+                dragItem.classList.add("picker-dragging");
+                dragItem.style.position = "fixed";
+                dragItem.style.left = rect.left + "px";
+                dragItem.style.width = rect.width + "px";
+                dragItem.style.top = (touchStartY - offsetY) + "px";
+                dragItem.style.zIndex = "300";
+            }, 400);
+        }, { passive: true });
+
+        item.addEventListener("touchmove", (e) => {
+            const y = e.touches[0].clientY;
+            if (!isDragging) {
+                if (Math.abs(y - touchStartY) > 10) {
+                    clearTimeout(longPressTimer);
+                }
+                return;
+            }
+            e.preventDefault();
+            dragItem.style.top = (y - offsetY) + "px";
+
+            const siblings = [...container.querySelectorAll(".category-option:not(.picker-dragging)")];
+            let insertBefore = null;
+            for (const sib of siblings) {
+                const sibRect = sib.getBoundingClientRect();
+                if (y < sibRect.top + sibRect.height / 2) {
+                    insertBefore = sib;
+                    break;
+                }
+            }
+            if (insertBefore) {
+                container.insertBefore(placeholder, insertBefore);
+            } else {
+                container.appendChild(placeholder);
+            }
+        }, { passive: false });
+
+        item.addEventListener("touchend", () => {
+            clearTimeout(longPressTimer);
+            if (!isDragging || !dragItem) {
+                isDragging = false;
+                return;
+            }
+
+            container.insertBefore(dragItem, placeholder);
+            placeholder.remove();
+
+            dragItem.classList.remove("picker-dragging");
+            dragItem.style.position = "";
+            dragItem.style.left = "";
+            dragItem.style.width = "";
+            dragItem.style.top = "";
+            dragItem.style.zIndex = "";
+            dragItem = null;
+            placeholder = null;
+            isDragging = false;
+
+            // Neue Reihenfolge speichern
+            const newOrder = [...container.querySelectorAll(".category-option")]
+                .map(el => el.dataset.key);
+            sortedCategories = newOrder.map(key => CATEGORIES.find(c => c.key === key)).filter(Boolean);
+            saveCategoryOrder(newOrder);
+            render();
+        });
+
+        item.addEventListener("touchcancel", () => {
+            clearTimeout(longPressTimer);
+            if (dragItem) {
+                container.insertBefore(dragItem, placeholder);
+                placeholder.remove();
+                dragItem.classList.remove("picker-dragging");
+                dragItem.style.position = "";
+                dragItem.style.left = "";
+                dragItem.style.width = "";
+                dragItem.style.top = "";
+                dragItem.style.zIndex = "";
+            }
+            dragItem = null;
+            placeholder = null;
+            isDragging = false;
+        });
     });
 }
 

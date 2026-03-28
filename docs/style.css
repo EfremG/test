@@ -369,6 +369,18 @@ main {
     border-bottom: none;
 }
 
+.category-option.picker-dragging {
+    background: var(--card-bg);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    border-radius: 10px;
+    opacity: 0.95;
+}
+
+.drag-placeholder-picker {
+    background: rgba(0, 122, 255, 0.06);
+    border-bottom: 0.5px solid var(--separator);
+}
+
 .category-option:active {
     background: rgba(0, 0, 0, 0.04);
 }

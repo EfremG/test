@@ -13,7 +13,6 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Hauptbildschirm -->
     <div id="app">
         <header>
             <button id="btn-settings" class="header-btn" aria-label="Einstellungen">
@@ -24,11 +23,7 @@
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
         </header>
-
-        <main id="list-container">
-            <!-- Wird dynamisch befüllt -->
-        </main>
-
+        <main id="list-container"></main>
         <div id="empty-state" class="hidden">
             <div class="empty-icon">🛒</div>
             <p class="empty-title">Keine Artikel</p>
@@ -36,8 +31,6 @@
             <p class="empty-list-id"></p>
         </div>
     </div>
-
-    <!-- Artikel hinzufügen Modal -->
     <div id="modal-add" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
@@ -50,19 +43,13 @@
                 </div>
                 <div class="category-picker">
                     <p class="picker-label">Kategorie</p>
-                    <div id="category-list" class="category-list">
-                        <!-- Wird dynamisch befüllt -->
-                    </div>
+                    <div id="category-list" class="category-list"></div>
                 </div>
-                <button id="btn-add-item" class="btn-primary" disabled>
-                    Hinzufügen
-                </button>
+                <button id="btn-add-item" class="btn-primary" disabled>Hinzufügen</button>
                 <p id="added-count" class="added-count hidden"></p>
             </div>
         </div>
     </div>
-
-    <!-- Einstellungen Modal -->
     <div id="modal-settings" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
@@ -76,44 +63,28 @@
                         <span>Listen-ID:</span>
                         <strong id="display-list-id"></strong>
                     </div>
-                    <button id="btn-copy-id" class="btn-secondary">
-                        Listen-ID kopieren
-                    </button>
-                    <button id="btn-share-id" class="btn-secondary">
-                        Listen-ID teilen
-                    </button>
+                    <button id="btn-copy-id" class="btn-secondary">Listen-ID kopieren</button>
+                    <button id="btn-share-id" class="btn-secondary">Listen-ID teilen</button>
                 </div>
-
                 <div class="settings-section">
                     <h3>Einer Liste beitreten</h3>
                     <div class="input-group">
                         <input type="text" id="input-join-id" placeholder="Listen-ID eingeben" autocomplete="off" style="text-transform: uppercase; font-family: monospace;">
                     </div>
-                    <button id="btn-join-list" class="btn-secondary" disabled>
-                        Liste beitreten
-                    </button>
+                    <button id="btn-join-list" class="btn-secondary" disabled>Liste beitreten</button>
                 </div>
-
                 <div class="settings-section">
-                    <button id="btn-new-list" class="btn-secondary">
-                        Neue Liste erstellen
-                    </button>
+                    <button id="btn-new-list" class="btn-secondary">Neue Liste erstellen</button>
                 </div>
-
                 <div class="settings-section danger">
-                    <button id="btn-delete-all" class="btn-danger">
-                        Alle Artikel löschen
-                    </button>
+                    <button id="btn-delete-all" class="btn-danger">Alle Artikel löschen</button>
                 </div>
-
                 <div class="settings-section info">
                     <p>Teile die Listen-ID mit deinem Partner, damit ihr beide die gleiche Einkaufsliste verwenden könnt. Alle Änderungen werden in Echtzeit synchronisiert.</p>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Bestätigungs-Dialog -->
     <div id="modal-confirm" class="modal hidden">
         <div class="modal-content modal-confirm-content">
             <h3 id="confirm-title"></h3>
@@ -124,8 +95,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Firebase SDK -->
     <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,16 +1,6 @@
 const CACHE_NAME = "einkaufsliste-v1";
-const ASSETS = [
-    "/",
-    "/index.html",
-    "/style.css",
-    "/app.js",
-    "/manifest.json"
-];
 
 self.addEventListener("install", (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-    );
     self.skipWaiting();
 });
 
@@ -24,13 +14,11 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-    // Firebase-Anfragen immer direkt ans Netzwerk
     if (event.request.url.includes("firebaseio.com") ||
         event.request.url.includes("googleapis.com") ||
         event.request.url.includes("gstatic.com")) {
         return;
     }
-
     event.respondWith(
         fetch(event.request)
             .then((response) => {

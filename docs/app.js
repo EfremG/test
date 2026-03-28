@@ -44,6 +44,18 @@ const CATEGORIES = [
     { key: "Sonstiges",                  color: "#8e8e93" },
 ];
 
+// Sortierte Kategorien (wird durch Firebase/localStorage überschrieben)
+let sortedCategories = [...CATEGORIES];
+
+function getOrderedCategories() {
+    return sortedCategories;
+}
+
+function saveCategoryOrder(orderedKeys) {
+    const listId = getListId();
+    set(ref(db, `lists/${listId}/categoryOrder`), orderedKeys);
+}
+
 // Bekannte Läden
 const STORES = [
     { name: "Lidl",      icon: "🟡" },
@@ -126,6 +138,26 @@ function startObserving() {
             }
         });
         render();
+    });
+
+    const orderRef = ref(db, `lists/${listId}/categoryOrder`);
+    onValue(orderRef, (snapshot) => {
+        const order = snapshot.val();
+        if (order && Array.isArray(order)) {
+            const ordered = [];
+            order.forEach(key => {
+                const cat = CATEGORIES.find(c => c.key === key);
+                if (cat) ordered.push(cat);
+            });
+            // Neue Kategorien anhängen die nicht in der Sortierung sind
+            CATEGORIES.forEach(cat => {
+                if (!ordered.find(c => c.key === cat.key)) ordered.push(cat);
+            });
+            sortedCategories = ordered;
+        }
+        render();
+        buildCategorySortList();
+        buildCategoryPicker();
     });
 
     const codesRef = ref(db, `lists/${listId}/codes`);
@@ -250,8 +282,9 @@ function render() {
     const checked = items.filter(i => i.isChecked).sort((a, b) => (b.checkedAt || 0) - (a.checkedAt || 0));
 
     // Nach Kategorie gruppieren
+    const cats = getOrderedCategories();
     const groups = {};
-    CATEGORIES.forEach(cat => { groups[cat.key] = []; });
+    cats.forEach(cat => { groups[cat.key] = []; });
     unchecked.forEach(item => {
         const key = item.category || "Sonstiges";
         if (!groups[key]) groups[key] = [];
@@ -264,7 +297,7 @@ function render() {
     let html = "";
 
     // Nicht erledigte nach Kategorie
-    CATEGORIES.forEach(cat => {
+    cats.forEach(cat => {
         const catItems = groups[cat.key];
         if (!catItems || catItems.length === 0) return;
 
@@ -455,6 +488,126 @@ function attachSwipeListeners() {
 }
 
 // ============================================================
+// Kategorien sortieren (Drag & Drop)
+// ============================================================
+function buildCategorySortList() {
+    const container = document.getElementById("category-sort-list");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const cats = getOrderedCategories();
+    cats.forEach(cat => {
+        const item = document.createElement("div");
+        item.className = "category-sort-item";
+        item.dataset.key = cat.key;
+        item.innerHTML = `<span class="sort-dot" style="background:${cat.color}"></span>
+            <span class="sort-name">${cat.key}</span>
+            <span class="sort-handle">≡</span>`;
+        container.appendChild(item);
+    });
+
+    initSortDrag(container);
+}
+
+function initSortDrag(container) {
+    let dragItem = null;
+    let placeholder = null;
+    let startY = 0;
+    let offsetY = 0;
+    let itemHeight = 0;
+
+    container.querySelectorAll(".sort-handle").forEach(handle => {
+        handle.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            dragItem = handle.closest(".category-sort-item");
+            const rect = dragItem.getBoundingClientRect();
+            itemHeight = rect.height;
+            startY = e.touches[0].clientY;
+            offsetY = startY - rect.top;
+
+            // Placeholder erstellen
+            placeholder = document.createElement("div");
+            placeholder.className = "drag-placeholder";
+            placeholder.style.height = itemHeight + "px";
+            dragItem.parentNode.insertBefore(placeholder, dragItem);
+
+            // Drag-Element positionieren
+            dragItem.classList.add("dragging");
+            dragItem.style.position = "fixed";
+            dragItem.style.left = rect.left + "px";
+            dragItem.style.width = rect.width + "px";
+            dragItem.style.top = (startY - offsetY) + "px";
+        }, { passive: false });
+    });
+
+    container.addEventListener("touchmove", (e) => {
+        if (!dragItem) return;
+        e.preventDefault();
+        const y = e.touches[0].clientY;
+        dragItem.style.top = (y - offsetY) + "px";
+
+        // Placeholder verschieben
+        const siblings = [...container.querySelectorAll(".category-sort-item:not(.dragging)")];
+        let insertBefore = null;
+        for (const sib of siblings) {
+            const sibRect = sib.getBoundingClientRect();
+            if (y < sibRect.top + sibRect.height / 2) {
+                insertBefore = sib;
+                break;
+            }
+        }
+        if (insertBefore) {
+            container.insertBefore(placeholder, insertBefore);
+        } else {
+            container.appendChild(placeholder);
+        }
+    }, { passive: false });
+
+    container.addEventListener("touchend", () => {
+        if (!dragItem) return;
+        // Element an Placeholder-Position einfügen
+        container.insertBefore(dragItem, placeholder);
+        placeholder.remove();
+
+        dragItem.classList.remove("dragging");
+        dragItem.style.position = "";
+        dragItem.style.left = "";
+        dragItem.style.width = "";
+        dragItem.style.top = "";
+        dragItem = null;
+        placeholder = null;
+
+        // Neue Reihenfolge speichern
+        const newOrder = [...container.querySelectorAll(".category-sort-item")]
+            .map(el => el.dataset.key);
+        sortedCategories = newOrder.map(key => CATEGORIES.find(c => c.key === key)).filter(Boolean);
+        saveCategoryOrder(newOrder);
+        render();
+        buildCategoryPicker();
+    });
+}
+
+function buildCategoryPicker() {
+    const catList = document.getElementById("category-list");
+    if (!catList) return;
+    catList.innerHTML = "";
+    const cats = getOrderedCategories();
+    cats.forEach(cat => {
+        const opt = document.createElement("div");
+        opt.className = `category-option${cat.key === selectedCategory ? " selected" : ""}`;
+        opt.innerHTML = `<span class="cat-dot" style="background:${cat.color}"></span>
+            <span>${cat.key}</span>
+            <span class="cat-check">✓</span>`;
+        opt.addEventListener("click", () => {
+            selectedCategory = cat.key;
+            document.querySelectorAll(".category-option").forEach(o => o.classList.remove("selected"));
+            opt.classList.add("selected");
+        });
+        catList.appendChild(opt);
+    });
+}
+
+// ============================================================
 // Globale Funktionen (für onclick im HTML)
 // ============================================================
 window._deleteItem = function(id) {
@@ -481,21 +634,9 @@ window._viewCode = function(id) {
 // UI Event Listeners
 // ============================================================
 document.addEventListener("DOMContentLoaded", () => {
-    // Kategorie-Picker befüllen
-    const catList = document.getElementById("category-list");
-    CATEGORIES.forEach(cat => {
-        const opt = document.createElement("div");
-        opt.className = `category-option${cat.key === selectedCategory ? " selected" : ""}`;
-        opt.innerHTML = `<span class="cat-dot" style="background:${cat.color}"></span>
-            <span>${cat.key}</span>
-            <span class="cat-check">✓</span>`;
-        opt.addEventListener("click", () => {
-            selectedCategory = cat.key;
-            document.querySelectorAll(".category-option").forEach(o => o.classList.remove("selected"));
-            opt.classList.add("selected");
-        });
-        catList.appendChild(opt);
-    });
+    // Kategorie-Picker und Sortierliste initial befüllen
+    buildCategoryPicker();
+    buildCategorySortList();
 
     // Artikel hinzufügen Modal
     const modalAdd = document.getElementById("modal-add");

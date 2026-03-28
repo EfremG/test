@@ -156,7 +156,7 @@ function startObserving() {
             sortedCategories = ordered;
         }
         render();
-        buildCategorySortList();
+
         buildCategoryPicker();
     });
 
@@ -488,140 +488,6 @@ function attachSwipeListeners() {
     }, { passive: true });
 }
 
-// ============================================================
-// Kategorien sortieren (Drag & Drop)
-// ============================================================
-function buildCategorySortList() {
-    const container = document.getElementById("category-sort-list");
-    if (!container) return;
-    container.innerHTML = "";
-
-    const cats = getOrderedCategories();
-    cats.forEach(cat => {
-        const item = document.createElement("div");
-        item.className = "category-sort-item";
-        item.dataset.key = cat.key;
-        item.innerHTML = `<span class="sort-dot" style="background:${cat.color}"></span>
-            <span class="sort-name">${cat.key}</span>
-            <span class="sort-handle">≡</span>`;
-        container.appendChild(item);
-    });
-
-    initLongPressDrag(container);
-}
-
-function initLongPressDrag(container) {
-    let dragItem = null;
-    let placeholder = null;
-    let offsetY = 0;
-    let longPressTimer = null;
-    let isDragging = false;
-    let touchStartY = 0;
-
-    container.querySelectorAll(".category-sort-item").forEach(item => {
-        item.addEventListener("touchstart", (e) => {
-            touchStartY = e.touches[0].clientY;
-            // Long Press: 400ms halten zum Aktivieren
-            longPressTimer = setTimeout(() => {
-                isDragging = true;
-                dragItem = item;
-                const rect = dragItem.getBoundingClientRect();
-                offsetY = touchStartY - rect.top;
-
-                // Vibration als Feedback
-                if (navigator.vibrate) navigator.vibrate(30);
-
-                // Placeholder erstellen
-                placeholder = document.createElement("div");
-                placeholder.className = "drag-placeholder";
-                placeholder.style.height = rect.height + "px";
-                dragItem.parentNode.insertBefore(placeholder, dragItem);
-
-                // Drag-Element positionieren
-                dragItem.classList.add("dragging");
-                dragItem.style.position = "fixed";
-                dragItem.style.left = rect.left + "px";
-                dragItem.style.width = rect.width + "px";
-                dragItem.style.top = (touchStartY - offsetY) + "px";
-            }, 400);
-        }, { passive: true });
-
-        item.addEventListener("touchmove", (e) => {
-            const y = e.touches[0].clientY;
-            // Wenn noch nicht im Drag-Modus und Finger sich bewegt hat, Long Press abbrechen
-            if (!isDragging) {
-                if (Math.abs(y - touchStartY) > 10) {
-                    clearTimeout(longPressTimer);
-                }
-                return;
-            }
-            e.preventDefault();
-            dragItem.style.top = (y - offsetY) + "px";
-
-            // Placeholder verschieben
-            const siblings = [...container.querySelectorAll(".category-sort-item:not(.dragging)")];
-            let insertBefore = null;
-            for (const sib of siblings) {
-                const sibRect = sib.getBoundingClientRect();
-                if (y < sibRect.top + sibRect.height / 2) {
-                    insertBefore = sib;
-                    break;
-                }
-            }
-            if (insertBefore) {
-                container.insertBefore(placeholder, insertBefore);
-            } else {
-                container.appendChild(placeholder);
-            }
-        }, { passive: false });
-
-        item.addEventListener("touchend", () => {
-            clearTimeout(longPressTimer);
-            if (!isDragging || !dragItem) {
-                isDragging = false;
-                return;
-            }
-
-            // Element an Placeholder-Position einfügen
-            container.insertBefore(dragItem, placeholder);
-            placeholder.remove();
-
-            dragItem.classList.remove("dragging");
-            dragItem.style.position = "";
-            dragItem.style.left = "";
-            dragItem.style.width = "";
-            dragItem.style.top = "";
-            dragItem = null;
-            placeholder = null;
-            isDragging = false;
-
-            // Neue Reihenfolge speichern
-            const newOrder = [...container.querySelectorAll(".category-sort-item")]
-                .map(el => el.dataset.key);
-            sortedCategories = newOrder.map(key => CATEGORIES.find(c => c.key === key)).filter(Boolean);
-            saveCategoryOrder(newOrder);
-            render();
-            buildCategoryPicker();
-        });
-
-        item.addEventListener("touchcancel", () => {
-            clearTimeout(longPressTimer);
-            if (dragItem) {
-                container.insertBefore(dragItem, placeholder);
-                placeholder.remove();
-                dragItem.classList.remove("dragging");
-                dragItem.style.position = "";
-                dragItem.style.left = "";
-                dragItem.style.width = "";
-                dragItem.style.top = "";
-            }
-            dragItem = null;
-            placeholder = null;
-            isDragging = false;
-        });
-    });
-}
-
 function attachSectionDrag(listContainer) {
     const sections = listContainer.querySelectorAll(".section[data-cat-key]");
     if (sections.length < 2) return;
@@ -724,7 +590,7 @@ function attachSectionDrag(listContainer) {
             });
             sortedCategories = fullOrder.map(key => CATEGORIES.find(c => c.key === key)).filter(Boolean);
             saveCategoryOrder(fullOrder);
-            buildCategorySortList();
+    
             buildCategoryPicker();
         });
 

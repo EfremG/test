@@ -317,39 +317,39 @@ window._deleteChecked = function() {
 // UI Event Listeners
 // ============================================================
 document.addEventListener("DOMContentLoaded", () => {
-    // Kategorie-Picker (inline Chips) befüllen
+    // Kategorie-Picker befüllen
     const catList = document.getElementById("category-list");
-    const categoryDot = document.getElementById("category-dot");
-    const categoryPicker = document.getElementById("category-picker");
-
-    function updateCategoryDot() {
-        const cat = CATEGORIES.find(c => c.key === selectedCategory);
-        if (cat) categoryDot.style.background = cat.color;
-    }
-
     CATEGORIES.forEach(cat => {
-        const chip = document.createElement("div");
-        chip.className = `cat-chip${cat.key === selectedCategory ? " selected" : ""}`;
-        chip.innerHTML = `<span class="chip-dot" style="background:${cat.color}"></span>${cat.key}`;
-        chip.addEventListener("click", () => {
+        const opt = document.createElement("div");
+        opt.className = `category-option${cat.key === selectedCategory ? " selected" : ""}`;
+        opt.innerHTML = `<span class="cat-dot" style="background:${cat.color}"></span>
+            <span>${cat.key}</span>
+            <span class="cat-check">✓</span>`;
+        opt.addEventListener("click", () => {
             selectedCategory = cat.key;
-            document.querySelectorAll(".cat-chip").forEach(c => c.classList.remove("selected"));
-            chip.classList.add("selected");
-            updateCategoryDot();
-            categoryPicker.classList.add("hidden");
+            document.querySelectorAll(".category-option").forEach(o => o.classList.remove("selected"));
+            opt.classList.add("selected");
         });
-        catList.appendChild(chip);
-    });
-    updateCategoryDot();
-
-    // Kategorie-Button togglet den Picker
-    document.getElementById("btn-category").addEventListener("click", () => {
-        categoryPicker.classList.toggle("hidden");
+        catList.appendChild(opt);
     });
 
-    // Inline Artikel hinzufügen
+    // Artikel hinzufügen Modal
+    const modalAdd = document.getElementById("modal-add");
     const inputName = document.getElementById("input-item-name");
     const btnAddItem = document.getElementById("btn-add-item");
+    const addedCountEl = document.getElementById("added-count");
+
+    document.getElementById("btn-add").addEventListener("click", () => {
+        modalAdd.classList.remove("hidden");
+        addedCount = 0;
+        addedCountEl.classList.add("hidden");
+        setTimeout(() => inputName.focus(), 100);
+    });
+
+    document.getElementById("btn-add-close").addEventListener("click", () => {
+        modalAdd.classList.add("hidden");
+        inputName.value = "";
+    });
 
     inputName.addEventListener("input", () => {
         btnAddItem.disabled = !inputName.value.trim();
@@ -361,6 +361,10 @@ document.addEventListener("DOMContentLoaded", () => {
         addItem(name, selectedCategory);
         inputName.value = "";
         btnAddItem.disabled = true;
+        addedCount++;
+        addedCountEl.textContent = `✓ ${addedCount} Artikel hinzugefügt`;
+        addedCountEl.classList.remove("hidden");
+        inputName.focus();
     }
 
     btnAddItem.addEventListener("click", doAddItem);
@@ -385,6 +389,7 @@ document.addEventListener("DOMContentLoaded", () => {
         modalSettings.classList.add("hidden");
     });
 
+    // Listen-ID kopieren
     document.getElementById("btn-copy-id").addEventListener("click", () => {
         navigator.clipboard.writeText(getListId()).then(() => {
             const btn = document.getElementById("btn-copy-id");
@@ -393,10 +398,14 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    // Listen-ID teilen
     document.getElementById("btn-share-id").addEventListener("click", () => {
         const listId = getListId();
         if (navigator.share) {
-            navigator.share({ title: "Einkaufsliste", text: `Tritt meiner Einkaufsliste bei! Listen-ID: ${listId}` });
+            navigator.share({
+                title: "Einkaufsliste",
+                text: `Tritt meiner Einkaufsliste bei! Listen-ID: ${listId}`,
+            });
         } else {
             navigator.clipboard.writeText(listId);
             const btn = document.getElementById("btn-share-id");
@@ -405,6 +414,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // Liste beitreten
     inputJoinId.addEventListener("input", () => {
         document.getElementById("btn-join-list").disabled = !inputJoinId.value.trim();
     });
@@ -412,23 +422,50 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("btn-join-list").addEventListener("click", () => {
         const id = inputJoinId.value.trim().toUpperCase();
         if (!id) return;
-        setListId(id); inputJoinId.value = ""; displayListId.textContent = id;
-        startObserving(); modalSettings.classList.add("hidden");
+        setListId(id);
+        inputJoinId.value = "";
+        displayListId.textContent = id;
+        startObserving();
+        modalSettings.classList.add("hidden");
     });
 
+    // Neue Liste
     document.getElementById("btn-new-list").addEventListener("click", () => {
-        showConfirm("Neue Liste erstellen?", "Du verlässt die aktuelle Liste und erstellst eine neue.", "Erstellen", false, () => {
-            const newId = generateListId(); setListId(newId); displayListId.textContent = newId;
-            startObserving(); modalSettings.classList.add("hidden");
-        });
+        showConfirm(
+            "Neue Liste erstellen?",
+            "Du verlässt die aktuelle Liste und erstellst eine neue.",
+            "Erstellen",
+            false,
+            () => {
+                const newId = generateListId();
+                setListId(newId);
+                displayListId.textContent = newId;
+                startObserving();
+                modalSettings.classList.add("hidden");
+            }
+        );
     });
 
+    // Alle löschen
     document.getElementById("btn-delete-all").addEventListener("click", () => {
-        showConfirm("Alle Artikel löschen?", "Alle Artikel werden unwiderruflich gelöscht. Dies betrifft auch die Liste deines Partners.", "Löschen", true, () => { deleteAllItems(); });
+        showConfirm(
+            "Alle Artikel löschen?",
+            "Alle Artikel werden unwiderruflich gelöscht. Dies betrifft auch die Liste deines Partners.",
+            "Löschen",
+            true,
+            () => {
+                deleteAllItems();
+            }
+        );
     });
 
-    [modalSettings].forEach(modal => {
-        modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.add("hidden"); });
+    // Modale schliessen bei Klick auf Hintergrund
+    [modalAdd, modalSettings].forEach(modal => {
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) {
+                modal.classList.add("hidden");
+            }
+        });
     });
 });
 

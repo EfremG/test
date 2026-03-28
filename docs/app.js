@@ -42,9 +42,11 @@ const CATEGORIES = [
 // State
 let currentUserId = "";
 let items = [];
+let codes = [];
 let selectedCategory = "Sonstiges";
 let addedCount = 0;
 let currentSwipedRow = null;
+let currentViewedCode = null;
 
 // ============================================================
 // Listen-ID Verwaltung
@@ -89,15 +91,12 @@ onAuthStateChanged(auth, (user) => {
 // Firebase Realtime Database
 // ============================================================
 let currentListener = null;
+let currentCodesListener = null;
 
 function startObserving() {
-    if (currentListener) {
-        // Alten Listener gibt es nicht direkt zum Entfernen bei onValue,
-        // aber wir können einfach nochmal aufrufen
-    }
     const listId = getListId();
-    const itemsRef = ref(db, `lists/${listId}/items`);
 
+    const itemsRef = ref(db, `lists/${listId}/items`);
     currentListener = onValue(itemsRef, (snapshot) => {
         items = [];
         snapshot.forEach((child) => {
@@ -107,6 +106,18 @@ function startObserving() {
             }
         });
         render();
+    });
+
+    const codesRef = ref(db, `lists/${listId}/codes`);
+    currentCodesListener = onValue(codesRef, (snapshot) => {
+        codes = [];
+        snapshot.forEach((child) => {
+            const val = child.val();
+            if (val && val.id && val.imageData) {
+                codes.push(val);
+            }
+        });
+        renderCodes();
     });
 }
 
@@ -149,6 +160,53 @@ function deleteCheckedItems() {
 function deleteAllItems() {
     const listId = getListId();
     remove(ref(db, `lists/${listId}/items`));
+}
+
+// ============================================================
+// Codes (Bilder) – Firebase CRUD
+// ============================================================
+function addCode(name, imageData) {
+    const listId = getListId();
+    const id = crypto.randomUUID();
+    const code = {
+        id,
+        name: name.trim(),
+        imageData,
+        addedBy: currentUserId,
+        createdAt: Date.now() / 1000
+    };
+    set(ref(db, `lists/${listId}/codes/${id}`), code);
+}
+
+function deleteCode(codeItem) {
+    const listId = getListId();
+    remove(ref(db, `lists/${listId}/codes/${codeItem.id}`));
+}
+
+function resizeImage(file, maxWidth, maxHeight) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                let w = img.width;
+                let h = img.height;
+                if (w > maxWidth || h > maxHeight) {
+                    const ratio = Math.min(maxWidth / w, maxHeight / h);
+                    w = Math.round(w * ratio);
+                    h = Math.round(h * ratio);
+                }
+                const canvas = document.createElement("canvas");
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL("image/jpeg", 0.7));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 // ============================================================
@@ -222,6 +280,35 @@ function render() {
 
     container.innerHTML = html;
     attachSwipeListeners();
+}
+
+function renderCodes() {
+    const grid = document.getElementById("codes-grid");
+    const emptyState = document.getElementById("codes-empty");
+    if (!grid) return;
+
+    if (codes.length === 0) {
+        grid.innerHTML = "";
+        emptyState.classList.remove("hidden");
+        return;
+    }
+
+    emptyState.classList.add("hidden");
+    const sorted = [...codes].sort((a, b) => b.createdAt - a.createdAt);
+
+    let html = "";
+    sorted.forEach(code => {
+        const date = new Date(code.createdAt * 1000);
+        const dateStr = `${date.getDate()}.${date.getMonth() + 1}.`;
+        html += `<div class="code-card" data-code-id="${code.id}" onclick="window._viewCode('${code.id}')">
+            <img src="${code.imageData}" alt="${escapeHtml(code.name)}" loading="lazy">
+            <div class="code-card-info">
+                <span class="code-card-name">${escapeHtml(code.name)}</span>
+                <span class="code-card-date">${dateStr}</span>
+            </div>
+        </div>`;
+    });
+    grid.innerHTML = html;
 }
 
 function renderItemRow(item) {
@@ -311,6 +398,16 @@ window._deleteItem = function(id) {
 
 window._deleteChecked = function() {
     deleteCheckedItems();
+};
+
+window._viewCode = function(id) {
+    const code = codes.find(c => c.id === id);
+    if (!code) return;
+    currentViewedCode = code;
+    const modal = document.getElementById("modal-image");
+    document.getElementById("image-fullview").src = code.imageData;
+    document.getElementById("image-title").textContent = code.name;
+    modal.classList.remove("hidden");
 };
 
 // ============================================================
@@ -457,6 +554,62 @@ document.addEventListener("DOMContentLoaded", () => {
                 deleteAllItems();
             }
         );
+    });
+
+    // Tab-Umschaltung
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const tab = btn.dataset.tab;
+            document.getElementById("tab-liste").classList.toggle("hidden", tab !== "liste");
+            document.getElementById("tab-codes").classList.toggle("hidden", tab !== "codes");
+            // + Button nur bei Liste anzeigen
+            document.getElementById("btn-add").style.display = tab === "liste" ? "" : "none";
+        });
+    });
+
+    // Code-Upload
+    const inputUpload = document.getElementById("input-code-upload");
+    document.getElementById("btn-upload-code").addEventListener("click", () => {
+        inputUpload.click();
+    });
+
+    inputUpload.addEventListener("change", async () => {
+        const file = inputUpload.files[0];
+        if (!file) return;
+        const btn = document.getElementById("btn-upload-code");
+        btn.textContent = "Wird hochgeladen...";
+        btn.disabled = true;
+        const imageData = await resizeImage(file, 1200, 1200);
+        const name = file.name.replace(/\.[^.]+$/, "") || "Code";
+        addCode(name, imageData);
+        inputUpload.value = "";
+        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Bild hochladen`;
+        btn.disabled = false;
+    });
+
+    // Bild-Vollansicht
+    const modalImage = document.getElementById("modal-image");
+    document.getElementById("btn-image-close").addEventListener("click", () => {
+        modalImage.classList.add("hidden");
+        currentViewedCode = null;
+    });
+
+    document.getElementById("btn-image-delete").addEventListener("click", () => {
+        if (!currentViewedCode) return;
+        showConfirm("Bild löschen?", "Das Bild wird unwiderruflich gelöscht.", "Löschen", true, () => {
+            deleteCode(currentViewedCode);
+            modalImage.classList.add("hidden");
+            currentViewedCode = null;
+        });
+    });
+
+    modalImage.addEventListener("click", (e) => {
+        if (e.target === modalImage) {
+            modalImage.classList.add("hidden");
+            currentViewedCode = null;
+        }
     });
 
     // Modale schliessen bei Klick auf Hintergrund

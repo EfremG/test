@@ -403,9 +403,16 @@ function attachSwipeListeners() {
             }
         }, { passive: true });
 
-        row.addEventListener("touchend", () => {
+        row.addEventListener("touchend", (e) => {
+            // Wenn auf den Löschen-Button getippt wurde, nicht togglen
+            if (e.target.closest(".item-delete")) return;
             if (!swiping) {
-                // Es war ein Tap, kein Swipe
+                // Wenn die Row geswiped ist, Swipe schliessen statt togglen
+                if (row.classList.contains("swiped")) {
+                    row.classList.remove("swiped");
+                    currentSwipedRow = null;
+                    return;
+                }
                 const id = row.dataset.id;
                 const item = items.find(i => i.id === id);
                 if (item) toggleItem(item);
@@ -413,11 +420,24 @@ function attachSwipeListeners() {
         });
 
         // Desktop: Click zum Abhaken
-        row.addEventListener("click", () => {
+        row.addEventListener("click", (e) => {
+            if (e.target.closest(".item-delete")) return;
             const id = row.dataset.id;
             const item = items.find(i => i.id === id);
             if (item) toggleItem(item);
         });
+
+        // Löschen-Button Touch-Handler
+        const deleteBtn = row.querySelector(".item-delete");
+        if (deleteBtn) {
+            deleteBtn.addEventListener("touchend", (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const id = row.dataset.id;
+                const item = items.find(i => i.id === id);
+                if (item) deleteItem(item);
+            });
+        }
     });
 
     // Tippen ausserhalb schliesst Swipe

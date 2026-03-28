@@ -611,6 +611,74 @@ main {
     text-align: center;
 }
 
+/* Laden-Gruppierung */
+.store-group {
+    margin-bottom: 16px;
+}
+
+.store-group-header {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.store-group-header svg {
+    flex-shrink: 0;
+}
+
+.store-badge {
+    font-size: 11px;
+    background: var(--accent);
+    color: white;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-weight: 600;
+}
+
+/* Laden-Auswahl */
+.store-list {
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.store-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 16px;
+    cursor: pointer;
+    border-bottom: 0.5px solid var(--separator);
+    font-size: 16px;
+    background: none;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    font-family: inherit;
+    color: var(--text);
+    width: 100%;
+    text-align: left;
+}
+
+.store-option:last-child {
+    border-bottom: none;
+}
+
+.store-option:active {
+    background: rgba(0, 122, 255, 0.08);
+}
+
+.store-option .store-icon {
+    font-size: 20px;
+}
+
 /* Bild-Vollansicht */
 .modal-image-content {
     background: var(--bg);

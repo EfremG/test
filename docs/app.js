@@ -39,6 +39,20 @@ const CATEGORIES = [
     { key: "Sonstiges",        color: "#8e8e93" },
 ];
 
+// Bekannte Läden
+const STORES = [
+    { name: "Lidl",      icon: "🟡" },
+    { name: "Rewe",      icon: "🔴" },
+    { name: "Aldi",      icon: "🔵" },
+    { name: "Edeka",     icon: "🟡" },
+    { name: "Kaufland",  icon: "🔴" },
+    { name: "Netto",     icon: "🟡" },
+    { name: "Penny",     icon: "🔴" },
+    { name: "dm",        icon: "⚪" },
+    { name: "Rossmann",  icon: "🔴" },
+    { name: "Müller",    icon: "🟣" },
+];
+
 // State
 let currentUserId = "";
 let items = [];
@@ -47,6 +61,7 @@ let selectedCategory = "Sonstiges";
 let addedCount = 0;
 let currentSwipedRow = null;
 let currentViewedCode = null;
+let pendingUploadData = null;
 
 // ============================================================
 // Listen-ID Verwaltung
@@ -165,13 +180,14 @@ function deleteAllItems() {
 // ============================================================
 // Codes (Bilder) – Firebase CRUD
 // ============================================================
-function addCode(name, imageData) {
+function addCode(name, imageData, store) {
     const listId = getListId();
     const id = crypto.randomUUID();
     const code = {
         id,
         name: name.trim(),
         imageData,
+        store: store || "Sonstiges",
         addedBy: currentUserId,
         createdAt: Date.now() / 1000
     };
@@ -283,32 +299,57 @@ function render() {
 }
 
 function renderCodes() {
-    const grid = document.getElementById("codes-grid");
+    const container = document.getElementById("codes-list");
     const emptyState = document.getElementById("codes-empty");
-    if (!grid) return;
+    if (!container) return;
 
     if (codes.length === 0) {
-        grid.innerHTML = "";
+        container.innerHTML = "";
         emptyState.classList.remove("hidden");
         return;
     }
 
     emptyState.classList.add("hidden");
-    const sorted = [...codes].sort((a, b) => b.createdAt - a.createdAt);
+
+    // Nach Laden gruppieren
+    const groups = {};
+    codes.forEach(code => {
+        const store = code.store || "Sonstiges";
+        if (!groups[store]) groups[store] = [];
+        groups[store].push(code);
+    });
+
+    // Innerhalb jeder Gruppe nach Datum sortieren
+    Object.values(groups).forEach(arr => arr.sort((a, b) => b.createdAt - a.createdAt));
+
+    // Laden-Namen sortieren
+    const storeNames = Object.keys(groups).sort((a, b) => a.localeCompare(b, "de"));
 
     let html = "";
-    sorted.forEach(code => {
-        const date = new Date(code.createdAt * 1000);
-        const dateStr = `${date.getDate()}.${date.getMonth() + 1}.`;
-        html += `<div class="code-card" data-code-id="${code.id}" onclick="window._viewCode('${code.id}')">
-            <img src="${code.imageData}" alt="${escapeHtml(code.name)}" loading="lazy">
-            <div class="code-card-info">
-                <span class="code-card-name">${escapeHtml(code.name)}</span>
-                <span class="code-card-date">${dateStr}</span>
-            </div>
+    storeNames.forEach(store => {
+        const storeInfo = STORES.find(s => s.name === store);
+        const icon = storeInfo ? storeInfo.icon : "🏪";
+        html += `<div class="store-group">`;
+        html += `<div class="store-group-header">
+            <span>${icon}</span>
+            ${escapeHtml(store)}
+            <span class="store-badge">${groups[store].length}</span>
         </div>`;
+        html += `<div class="codes-grid">`;
+        groups[store].forEach(code => {
+            const date = new Date(code.createdAt * 1000);
+            const dateStr = `${date.getDate()}.${date.getMonth() + 1}.`;
+            html += `<div class="code-card" onclick="window._viewCode('${code.id}')">
+                <img src="${code.imageData}" alt="${escapeHtml(code.name)}" loading="lazy">
+                <div class="code-card-info">
+                    <span class="code-card-name">${escapeHtml(code.name)}</span>
+                    <span class="code-card-date">${dateStr}</span>
+                </div>
+            </div>`;
+        });
+        html += `</div></div>`;
     });
-    grid.innerHTML = html;
+    container.innerHTML = html;
 }
 
 function renderItemRow(item) {
@@ -406,7 +447,8 @@ window._viewCode = function(id) {
     currentViewedCode = code;
     const modal = document.getElementById("modal-image");
     document.getElementById("image-fullview").src = code.imageData;
-    document.getElementById("image-title").textContent = code.name;
+    const store = code.store || "";
+    document.getElementById("image-title").textContent = store ? `${store} – ${code.name}` : code.name;
     modal.classList.remove("hidden");
 };
 
@@ -567,8 +609,56 @@ document.addEventListener("DOMContentLoaded", () => {
         modalCodes.classList.add("hidden");
     });
 
-    // Code-Upload
+    // Code-Upload: Bild wählen -> resizen -> Laden-Auswahl zeigen -> speichern
     const inputUpload = document.getElementById("input-code-upload");
+    const modalStore = document.getElementById("modal-store");
+    const storeList = document.getElementById("store-list");
+    const inputStoreCustom = document.getElementById("input-store-custom");
+    const btnStoreCustomOk = document.getElementById("btn-store-custom-ok");
+
+    // Laden-Liste befüllen
+    STORES.forEach(store => {
+        const btn = document.createElement("button");
+        btn.className = "store-option";
+        btn.innerHTML = `<span class="store-icon">${store.icon}</span> ${store.name}`;
+        btn.addEventListener("click", () => {
+            finishUpload(store.name);
+        });
+        storeList.appendChild(btn);
+    });
+
+    inputStoreCustom.addEventListener("input", () => {
+        btnStoreCustomOk.disabled = !inputStoreCustom.value.trim();
+    });
+
+    btnStoreCustomOk.addEventListener("click", () => {
+        const name = inputStoreCustom.value.trim();
+        if (name) finishUpload(name);
+    });
+
+    document.getElementById("btn-store-close").addEventListener("click", () => {
+        modalStore.classList.add("hidden");
+        pendingUploadData = null;
+    });
+
+    modalStore.addEventListener("click", (e) => {
+        if (e.target === modalStore) {
+            modalStore.classList.add("hidden");
+            pendingUploadData = null;
+        }
+    });
+
+    function finishUpload(storeName) {
+        if (!pendingUploadData) return;
+        addCode(pendingUploadData.name, pendingUploadData.imageData, storeName);
+        pendingUploadData = null;
+        modalStore.classList.add("hidden");
+        inputStoreCustom.value = "";
+        const btn = document.getElementById("btn-upload-code");
+        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Bild hochladen`;
+        btn.disabled = false;
+    }
+
     document.getElementById("btn-upload-code").addEventListener("click", () => {
         inputUpload.click();
     });
@@ -577,14 +667,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const file = inputUpload.files[0];
         if (!file) return;
         const btn = document.getElementById("btn-upload-code");
-        btn.textContent = "Wird hochgeladen...";
+        btn.textContent = "Bild wird vorbereitet...";
         btn.disabled = true;
         const imageData = await resizeImage(file, 1200, 1200);
         const name = file.name.replace(/\.[^.]+$/, "") || "Code";
-        addCode(name, imageData);
+        pendingUploadData = { name, imageData };
         inputUpload.value = "";
-        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Bild hochladen`;
-        btn.disabled = false;
+        // Laden-Auswahl zeigen
+        modalStore.classList.remove("hidden");
     });
 
     // Bild-Vollansicht

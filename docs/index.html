@@ -132,12 +132,31 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     Bild hochladen
                 </button>
-                <div id="codes-grid" class="codes-grid">
-                    <!-- Wird dynamisch befüllt -->
+                <div id="codes-list">
+                    <!-- Wird dynamisch befüllt (gruppiert nach Laden) -->
                 </div>
                 <div id="codes-empty" class="hidden">
                     <p class="empty-subtitle" style="padding:24px 0;color:var(--text-secondary)">Lade QR-Codes, Gutscheine oder Kundenkarten hoch</p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Laden-Auswahl Modal (beim Upload) -->
+    <div id="modal-store" class="modal hidden">
+        <div class="modal-content modal-store-content">
+            <div class="modal-header">
+                <h2>Laden wählen</h2>
+                <button id="btn-store-close" class="modal-close">Abbrechen</button>
+            </div>
+            <div class="modal-body">
+                <div id="store-list" class="store-list">
+                    <!-- Wird dynamisch befüllt -->
+                </div>
+                <div class="input-group" style="margin-top:12px">
+                    <input type="text" id="input-store-custom" placeholder="Anderer Laden..." autocomplete="off">
+                </div>
+                <button id="btn-store-custom-ok" class="btn-primary" disabled>Auswählen</button>
             </div>
         </div>
     </div>

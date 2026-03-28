@@ -506,84 +506,118 @@ function buildCategorySortList() {
         container.appendChild(item);
     });
 
-    initSortDrag(container);
+    initLongPressDrag(container);
 }
 
-function initSortDrag(container) {
+function initLongPressDrag(container) {
     let dragItem = null;
     let placeholder = null;
-    let startY = 0;
     let offsetY = 0;
-    let itemHeight = 0;
+    let longPressTimer = null;
+    let isDragging = false;
+    let touchStartY = 0;
 
-    container.querySelectorAll(".sort-handle").forEach(handle => {
-        handle.addEventListener("touchstart", (e) => {
-            e.preventDefault();
-            dragItem = handle.closest(".category-sort-item");
-            const rect = dragItem.getBoundingClientRect();
-            itemHeight = rect.height;
-            startY = e.touches[0].clientY;
-            offsetY = startY - rect.top;
+    container.querySelectorAll(".category-sort-item").forEach(item => {
+        item.addEventListener("touchstart", (e) => {
+            touchStartY = e.touches[0].clientY;
+            // Long Press: 400ms halten zum Aktivieren
+            longPressTimer = setTimeout(() => {
+                isDragging = true;
+                dragItem = item;
+                const rect = dragItem.getBoundingClientRect();
+                offsetY = touchStartY - rect.top;
 
-            // Placeholder erstellen
-            placeholder = document.createElement("div");
-            placeholder.className = "drag-placeholder";
-            placeholder.style.height = itemHeight + "px";
-            dragItem.parentNode.insertBefore(placeholder, dragItem);
+                // Vibration als Feedback
+                if (navigator.vibrate) navigator.vibrate(30);
 
-            // Drag-Element positionieren
-            dragItem.classList.add("dragging");
-            dragItem.style.position = "fixed";
-            dragItem.style.left = rect.left + "px";
-            dragItem.style.width = rect.width + "px";
-            dragItem.style.top = (startY - offsetY) + "px";
-        }, { passive: false });
-    });
+                // Placeholder erstellen
+                placeholder = document.createElement("div");
+                placeholder.className = "drag-placeholder";
+                placeholder.style.height = rect.height + "px";
+                dragItem.parentNode.insertBefore(placeholder, dragItem);
 
-    container.addEventListener("touchmove", (e) => {
-        if (!dragItem) return;
-        e.preventDefault();
-        const y = e.touches[0].clientY;
-        dragItem.style.top = (y - offsetY) + "px";
+                // Drag-Element positionieren
+                dragItem.classList.add("dragging");
+                dragItem.style.position = "fixed";
+                dragItem.style.left = rect.left + "px";
+                dragItem.style.width = rect.width + "px";
+                dragItem.style.top = (touchStartY - offsetY) + "px";
+            }, 400);
+        }, { passive: true });
 
-        // Placeholder verschieben
-        const siblings = [...container.querySelectorAll(".category-sort-item:not(.dragging)")];
-        let insertBefore = null;
-        for (const sib of siblings) {
-            const sibRect = sib.getBoundingClientRect();
-            if (y < sibRect.top + sibRect.height / 2) {
-                insertBefore = sib;
-                break;
+        item.addEventListener("touchmove", (e) => {
+            const y = e.touches[0].clientY;
+            // Wenn noch nicht im Drag-Modus und Finger sich bewegt hat, Long Press abbrechen
+            if (!isDragging) {
+                if (Math.abs(y - touchStartY) > 10) {
+                    clearTimeout(longPressTimer);
+                }
+                return;
             }
-        }
-        if (insertBefore) {
-            container.insertBefore(placeholder, insertBefore);
-        } else {
-            container.appendChild(placeholder);
-        }
-    }, { passive: false });
+            e.preventDefault();
+            dragItem.style.top = (y - offsetY) + "px";
 
-    container.addEventListener("touchend", () => {
-        if (!dragItem) return;
-        // Element an Placeholder-Position einfügen
-        container.insertBefore(dragItem, placeholder);
-        placeholder.remove();
+            // Placeholder verschieben
+            const siblings = [...container.querySelectorAll(".category-sort-item:not(.dragging)")];
+            let insertBefore = null;
+            for (const sib of siblings) {
+                const sibRect = sib.getBoundingClientRect();
+                if (y < sibRect.top + sibRect.height / 2) {
+                    insertBefore = sib;
+                    break;
+                }
+            }
+            if (insertBefore) {
+                container.insertBefore(placeholder, insertBefore);
+            } else {
+                container.appendChild(placeholder);
+            }
+        }, { passive: false });
 
-        dragItem.classList.remove("dragging");
-        dragItem.style.position = "";
-        dragItem.style.left = "";
-        dragItem.style.width = "";
-        dragItem.style.top = "";
-        dragItem = null;
-        placeholder = null;
+        item.addEventListener("touchend", () => {
+            clearTimeout(longPressTimer);
+            if (!isDragging || !dragItem) {
+                isDragging = false;
+                return;
+            }
 
-        // Neue Reihenfolge speichern
-        const newOrder = [...container.querySelectorAll(".category-sort-item")]
-            .map(el => el.dataset.key);
-        sortedCategories = newOrder.map(key => CATEGORIES.find(c => c.key === key)).filter(Boolean);
-        saveCategoryOrder(newOrder);
-        render();
-        buildCategoryPicker();
+            // Element an Placeholder-Position einfügen
+            container.insertBefore(dragItem, placeholder);
+            placeholder.remove();
+
+            dragItem.classList.remove("dragging");
+            dragItem.style.position = "";
+            dragItem.style.left = "";
+            dragItem.style.width = "";
+            dragItem.style.top = "";
+            dragItem = null;
+            placeholder = null;
+            isDragging = false;
+
+            // Neue Reihenfolge speichern
+            const newOrder = [...container.querySelectorAll(".category-sort-item")]
+                .map(el => el.dataset.key);
+            sortedCategories = newOrder.map(key => CATEGORIES.find(c => c.key === key)).filter(Boolean);
+            saveCategoryOrder(newOrder);
+            render();
+            buildCategoryPicker();
+        });
+
+        item.addEventListener("touchcancel", () => {
+            clearTimeout(longPressTimer);
+            if (dragItem) {
+                container.insertBefore(dragItem, placeholder);
+                placeholder.remove();
+                dragItem.classList.remove("dragging");
+                dragItem.style.position = "";
+                dragItem.style.left = "";
+                dragItem.style.width = "";
+                dragItem.style.top = "";
+            }
+            dragItem = null;
+            placeholder = null;
+            isDragging = false;
+        });
     });
 }
 

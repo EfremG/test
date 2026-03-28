@@ -30,13 +30,18 @@ const auth = getAuth(app);
 
 // Kategorien
 const CATEGORIES = [
-    { key: "Obst & Gemüse",   color: "#34c759" },
-    { key: "Milchprodukte",    color: "#007aff" },
-    { key: "Fleisch & Fisch",  color: "#ff3b30" },
-    { key: "Backwaren",        color: "#ff9500" },
-    { key: "Getränke",         color: "#5ac8fa" },
-    { key: "Haushalt",         color: "#af52de" },
-    { key: "Sonstiges",        color: "#8e8e93" },
+    { key: "Obst & Gemüse",             color: "#34c759" },
+    { key: "Zutaten & Gewürze",          color: "#ff9500" },
+    { key: "Getreideprodukte",           color: "#c69c6d" },
+    { key: "Haushalt",                   color: "#af52de" },
+    { key: "Brot & Gebäck",             color: "#d4a054" },
+    { key: "Fertig- & Tiefkühlprodukte", color: "#5ac8fa" },
+    { key: "Fleisch & Fisch",            color: "#ff3b30" },
+    { key: "Milch & Käse",              color: "#007aff" },
+    { key: "Snacks & Süsswaren",        color: "#ff6b9d" },
+    { key: "Pflege & Gesundheit",        color: "#30d158" },
+    { key: "Getränke",                   color: "#5ac8fa" },
+    { key: "Sonstiges",                  color: "#8e8e93" },
 ];
 
 // Bekannte Läden

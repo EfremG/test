@@ -1,4 +1,4 @@
-const CACHE_NAME = "einkaufsliste-v1";
+const CACHE_NAME = "einkaufsliste-v13";
 
 self.addEventListener("install", (event) => {
     self.skipWaiting();
@@ -14,12 +14,14 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+    // Firebase und Google APIs nie cachen
     if (event.request.url.includes("firebaseio.com") ||
         event.request.url.includes("googleapis.com") ||
         event.request.url.includes("gstatic.com")) {
         return;
     }
 
+    // Network-first: Immer zuerst online laden, nur bei Fehler Cache nutzen
     event.respondWith(
         fetch(event.request)
             .then((response) => {

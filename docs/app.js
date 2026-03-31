@@ -53,7 +53,13 @@ function getOrderedCategories() {
 
 function saveCategoryOrder(orderedKeys) {
     const listId = getListId();
-    set(ref(db, `lists/${listId}/categoryOrder`), orderedKeys);
+    saveToCache("categoryOrder", orderedKeys);
+    const path = `lists/${listId}/categoryOrder`;
+    if (isOnline) {
+        set(ref(db, path), orderedKeys).catch(() => addPendingOp({ type: "set", path, data: orderedKeys, listId }));
+    } else {
+        addPendingOp({ type: "set", path, data: orderedKeys, listId });
+    }
 }
 
 // Bekannte Läden
@@ -79,6 +85,72 @@ let addedCount = 0;
 let currentSwipedRow = null;
 let currentViewedCode = null;
 let pendingUploadData = null;
+let isOnline = navigator.onLine;
+
+// ============================================================
+// Offline-Cache & Sync
+// ============================================================
+function cacheKey(suffix) {
+    return `cache_${getListId()}_${suffix}`;
+}
+
+function saveToCache(suffix, data) {
+    try { localStorage.setItem(cacheKey(suffix), JSON.stringify(data)); } catch(e) {}
+}
+
+function loadFromCache(suffix) {
+    try {
+        const data = localStorage.getItem(cacheKey(suffix));
+        return data ? JSON.parse(data) : null;
+    } catch(e) { return null; }
+}
+
+function savePendingOps(ops) {
+    try { localStorage.setItem("pendingOps", JSON.stringify(ops)); } catch(e) {}
+}
+
+function loadPendingOps() {
+    try {
+        const data = localStorage.getItem("pendingOps");
+        return data ? JSON.parse(data) : [];
+    } catch(e) { return []; }
+}
+
+function addPendingOp(op) {
+    const ops = loadPendingOps();
+    ops.push(op);
+    savePendingOps(ops);
+}
+
+function flushPendingOps() {
+    const ops = loadPendingOps();
+    if (ops.length === 0) return;
+    savePendingOps([]);
+    ops.forEach(op => {
+        const listId = op.listId;
+        if (op.type === "set") {
+            set(ref(db, op.path), op.data).catch(() => addPendingOp(op));
+        } else if (op.type === "update") {
+            update(ref(db, op.path), op.data).catch(() => addPendingOp(op));
+        } else if (op.type === "remove") {
+            remove(ref(db, op.path)).catch(() => addPendingOp(op));
+        }
+    });
+}
+
+function updateOnlineStatus(online) {
+    isOnline = online;
+    const indicator = document.getElementById("offline-indicator");
+    if (indicator) {
+        indicator.classList.toggle("hidden", online);
+    }
+    if (online) {
+        flushPendingOps();
+    }
+}
+
+window.addEventListener("online", () => updateOnlineStatus(true));
+window.addEventListener("offline", () => updateOnlineStatus(false));
 
 // ============================================================
 // Listen-ID Verwaltung
@@ -128,6 +200,18 @@ let currentCodesListener = null;
 function startObserving() {
     const listId = getListId();
 
+    // Sofort aus Cache laden für schnellen Start / Offline
+    const cachedItems = loadFromCache("items");
+    if (cachedItems) { items = cachedItems; render(); }
+    const cachedCodes = loadFromCache("codes");
+    if (cachedCodes) { codes = cachedCodes; renderCodes(); }
+    const cachedOrder = loadFromCache("categoryOrder");
+    if (cachedOrder && Array.isArray(cachedOrder)) {
+        applyCategoryOrder(cachedOrder);
+        render();
+        buildCategoryPicker();
+    }
+
     const itemsRef = ref(db, `lists/${listId}/items`);
     currentListener = onValue(itemsRef, (snapshot) => {
         items = [];
@@ -137,6 +221,7 @@ function startObserving() {
                 items.push(val);
             }
         });
+        saveToCache("items", items);
         render();
     });
 
@@ -144,19 +229,10 @@ function startObserving() {
     onValue(orderRef, (snapshot) => {
         const order = snapshot.val();
         if (order && Array.isArray(order)) {
-            const ordered = [];
-            order.forEach(key => {
-                const cat = CATEGORIES.find(c => c.key === key);
-                if (cat) ordered.push(cat);
-            });
-            // Neue Kategorien anhängen die nicht in der Sortierung sind
-            CATEGORIES.forEach(cat => {
-                if (!ordered.find(c => c.key === cat.key)) ordered.push(cat);
-            });
-            sortedCategories = ordered;
+            applyCategoryOrder(order);
+            saveToCache("categoryOrder", order);
         }
         render();
-
         buildCategoryPicker();
     });
 
@@ -169,8 +245,24 @@ function startObserving() {
                 codes.push(val);
             }
         });
+        saveToCache("codes", codes);
         renderCodes();
     });
+
+    // Pending Ops senden falls online
+    if (isOnline) flushPendingOps();
+}
+
+function applyCategoryOrder(order) {
+    const ordered = [];
+    order.forEach(key => {
+        const cat = CATEGORIES.find(c => c.key === key);
+        if (cat) ordered.push(cat);
+    });
+    CATEGORIES.forEach(cat => {
+        if (!ordered.find(c => c.key === cat.key)) ordered.push(cat);
+    });
+    sortedCategories = ordered;
 }
 
 function addItem(name, category) {
@@ -185,7 +277,17 @@ function addItem(name, category) {
         createdAt: Date.now() / 1000,
         checkedAt: null
     };
-    set(ref(db, `lists/${listId}/items/${id}`), item);
+    // Sofort lokal anzeigen
+    items.push(item);
+    saveToCache("items", items);
+    render();
+    // An Firebase senden oder queuen
+    const path = `lists/${listId}/items/${id}`;
+    if (isOnline) {
+        set(ref(db, path), item).catch(() => addPendingOp({ type: "set", path, data: item, listId }));
+    } else {
+        addPendingOp({ type: "set", path, data: item, listId });
+    }
 }
 
 function toggleItem(item) {
@@ -194,24 +296,60 @@ function toggleItem(item) {
         isChecked: !item.isChecked,
         checkedAt: item.isChecked ? null : Date.now() / 1000
     };
-    update(ref(db, `lists/${listId}/items/${item.id}`), updates);
+    // Sofort lokal ändern
+    Object.assign(item, updates);
+    saveToCache("items", items);
+    render();
+    // An Firebase senden oder queuen
+    const path = `lists/${listId}/items/${item.id}`;
+    if (isOnline) {
+        update(ref(db, path), updates).catch(() => addPendingOp({ type: "update", path, data: updates, listId }));
+    } else {
+        addPendingOp({ type: "update", path, data: updates, listId });
+    }
 }
 
 function deleteItem(item) {
     const listId = getListId();
-    remove(ref(db, `lists/${listId}/items/${item.id}`));
+    // Sofort lokal entfernen
+    items = items.filter(i => i.id !== item.id);
+    saveToCache("items", items);
+    render();
+    const path = `lists/${listId}/items/${item.id}`;
+    if (isOnline) {
+        remove(ref(db, path)).catch(() => addPendingOp({ type: "remove", path, listId }));
+    } else {
+        addPendingOp({ type: "remove", path, listId });
+    }
 }
 
 function deleteCheckedItems() {
     const listId = getListId();
-    items.filter(i => i.isChecked).forEach(item => {
-        remove(ref(db, `lists/${listId}/items/${item.id}`));
+    const checked = items.filter(i => i.isChecked);
+    items = items.filter(i => !i.isChecked);
+    saveToCache("items", items);
+    render();
+    checked.forEach(item => {
+        const path = `lists/${listId}/items/${item.id}`;
+        if (isOnline) {
+            remove(ref(db, path)).catch(() => addPendingOp({ type: "remove", path, listId }));
+        } else {
+            addPendingOp({ type: "remove", path, listId });
+        }
     });
 }
 
 function deleteAllItems() {
     const listId = getListId();
-    remove(ref(db, `lists/${listId}/items`));
+    items = [];
+    saveToCache("items", items);
+    render();
+    const path = `lists/${listId}/items`;
+    if (isOnline) {
+        remove(ref(db, path)).catch(() => addPendingOp({ type: "remove", path, listId }));
+    } else {
+        addPendingOp({ type: "remove", path, listId });
+    }
 }
 
 // ============================================================
@@ -228,12 +366,28 @@ function addCode(name, imageData, store) {
         addedBy: currentUserId,
         createdAt: Date.now() / 1000
     };
-    set(ref(db, `lists/${listId}/codes/${id}`), code);
+    codes.push(code);
+    saveToCache("codes", codes);
+    renderCodes();
+    const path = `lists/${listId}/codes/${id}`;
+    if (isOnline) {
+        set(ref(db, path), code).catch(() => addPendingOp({ type: "set", path, data: code, listId }));
+    } else {
+        addPendingOp({ type: "set", path, data: code, listId });
+    }
 }
 
 function deleteCode(codeItem) {
     const listId = getListId();
-    remove(ref(db, `lists/${listId}/codes/${codeItem.id}`));
+    codes = codes.filter(c => c.id !== codeItem.id);
+    saveToCache("codes", codes);
+    renderCodes();
+    const path = `lists/${listId}/codes/${codeItem.id}`;
+    if (isOnline) {
+        remove(ref(db, path)).catch(() => addPendingOp({ type: "remove", path, listId }));
+    } else {
+        addPendingOp({ type: "remove", path, listId });
+    }
 }
 
 function resizeImage(file, maxWidth, maxHeight) {

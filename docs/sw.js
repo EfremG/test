@@ -1,6 +1,19 @@
-const CACHE_NAME = "einkaufsliste-v17";
+const CACHE_NAME = "einkaufsliste-v18";
+
+const APP_FILES = [
+    "./",
+    "./index.html",
+    "./style.css",
+    "./app.js",
+    "./manifest.json",
+    "./icon-192.png",
+    "./icon-512.png"
+];
 
 self.addEventListener("install", (event) => {
+    event.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_FILES))
+    );
     self.skipWaiting();
 });
 
@@ -14,14 +27,14 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-    // Firebase und Google APIs nie cachen
+    // Firebase und Google APIs immer direkt ans Netz
     if (event.request.url.includes("firebaseio.com") ||
         event.request.url.includes("googleapis.com") ||
         event.request.url.includes("gstatic.com")) {
         return;
     }
 
-    // Network-first: Immer zuerst online laden, nur bei Fehler Cache nutzen
+    // Network-first: Online laden, bei Fehler aus Cache
     event.respondWith(
         fetch(event.request)
             .then((response) => {

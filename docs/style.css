@@ -33,6 +33,21 @@ body {
     overflow-x: hidden;
 }
 
+/* Offline-Indikator */
+.offline-indicator {
+    background: #ff9500;
+    color: white;
+    text-align: center;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    padding-top: calc(var(--safe-top) + 6px);
+}
+
+.offline-indicator.hidden {
+    display: none;
+}
+
 /* Header */
 header {
     position: sticky;

@@ -1,4 +1,4 @@
-const CACHE_NAME = "einkaufsliste-v19";
+const CACHE_NAME = "einkaufsliste-v20";
 
 const APP_FILES = [
     "./",
@@ -34,12 +34,17 @@ self.addEventListener("fetch", (event) => {
         return;
     }
 
+    // Nur GET-Requests cachen
+    if (event.request.method !== "GET") return;
+
     // Network-first: Online laden, bei Fehler aus Cache
     event.respondWith(
         fetch(event.request)
             .then((response) => {
-                const clone = response.clone();
-                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+                if (response.ok) {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+                }
                 return response;
             })
             .catch(() => caches.match(event.request))

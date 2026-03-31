@@ -203,6 +203,8 @@ main {
     font-size: 16px;
     line-height: 1.3;
     transition: color 0.2s;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .item-category {
@@ -274,6 +276,7 @@ main {
     display: flex;
     align-items: flex-end;
     justify-content: center;
+    overscroll-behavior: contain;
     background: rgba(0, 0, 0, 0.4);
     opacity: 1;
     transition: opacity 0.2s;
@@ -290,6 +293,7 @@ main {
     max-width: 500px;
     max-height: 90dvh;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding-bottom: calc(var(--safe-bottom) + 16px);
     animation: slideUp 0.3s ease;
 }

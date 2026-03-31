@@ -402,10 +402,12 @@ function deleteCode(codeItem) {
 }
 
 function resizeImage(file, maxWidth, maxHeight) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         const reader = new FileReader();
+        reader.onerror = () => reject(new Error("Datei konnte nicht gelesen werden"));
         reader.onload = (e) => {
             const img = new Image();
+            img.onerror = () => reject(new Error("Ungültiges Bildformat"));
             img.onload = () => {
                 let w = img.width;
                 let h = img.height;
@@ -488,7 +490,7 @@ function render() {
                 <span class="category-dot" style="background:var(--green)"></span>
                 Erledigt (${checked.length})
             </span>
-            <button onclick="window._deleteChecked()">Alle entfernen</button>
+            <button class="btn-delete-checked">Alle entfernen</button>
         </div>`;
         html += `<div class="card">`;
         checked.forEach(item => {
@@ -500,6 +502,12 @@ function render() {
     container.innerHTML = html;
     attachSwipeListeners();
     attachSectionDrag(container);
+
+    // "Alle entfernen" Button (Event Delegation)
+    const btnDeleteChecked = container.querySelector(".btn-delete-checked");
+    if (btnDeleteChecked) {
+        btnDeleteChecked.addEventListener("click", () => deleteCheckedItems());
+    }
 }
 
 function renderCodes() {
@@ -543,7 +551,7 @@ function renderCodes() {
         groups[store].forEach(code => {
             const date = new Date(code.createdAt * 1000);
             const dateStr = `${date.getDate()}.${date.getMonth() + 1}.`;
-            html += `<div class="code-card" onclick="window._viewCode('${code.id}')">
+            html += `<div class="code-card" data-code-id="${escapeHtml(code.id)}">
                 <img src="${code.imageData}" alt="${escapeHtml(code.name)}" loading="lazy">
                 <div class="code-card-info">
                     <span class="code-card-name">${escapeHtml(code.name)}</span>
@@ -554,19 +562,33 @@ function renderCodes() {
         html += `</div></div>`;
     });
     container.innerHTML = html;
+
+    // Event delegation für Code-Karten
+    container.querySelectorAll(".code-card").forEach(card => {
+        card.addEventListener("click", () => {
+            const id = card.dataset.codeId;
+            const code = codes.find(c => c.id === id);
+            if (!code) return;
+            currentViewedCode = code;
+            document.getElementById("image-fullview").src = code.imageData;
+            const store = code.store || "";
+            document.getElementById("image-title").textContent = store ? `${store} – ${code.name}` : code.name;
+            document.getElementById("modal-image").classList.remove("hidden");
+        });
+    });
 }
 
 function renderItemRow(item) {
     const checkedClass = item.isChecked ? "checked" : "";
     const checkSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
-    return `<div class="item-row ${checkedClass}" data-id="${item.id}">
+    return `<div class="item-row ${checkedClass}" data-id="${escapeHtml(item.id)}">
         <div class="check-circle">${checkSvg}</div>
         <div class="item-info">
             <div class="item-name">${escapeHtml(item.name)}</div>
             <div class="item-category">${escapeHtml(item.category || "Sonstiges")}</div>
         </div>
-        <button class="item-delete" onclick="event.stopPropagation(); window._deleteItem('${item.id}')">Löschen</button>
+        <button class="item-delete">Löschen</button>
     </div>`;
 }
 
@@ -649,13 +671,22 @@ function attachSwipeListeners() {
             if (item) toggleItem(item);
         });
 
-        // Löschen-Button Touch-Handler
+        // Löschen-Button Touch- und Click-Handler
         const deleteBtn = row.querySelector(".item-delete");
         if (deleteBtn) {
+            let deleteTouchHandled = false;
             deleteBtn.addEventListener("touchend", (e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 touchHandled = true;
+                deleteTouchHandled = true;
+                const id = row.dataset.id;
+                const item = items.find(i => i.id === id);
+                if (item) deleteItem(item);
+            });
+            deleteBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                if (deleteTouchHandled) { deleteTouchHandled = false; return; }
                 const id = row.dataset.id;
                 const item = items.find(i => i.id === id);
                 if (item) deleteItem(item);
@@ -923,33 +954,14 @@ function initPickerDrag(container) {
     });
 }
 
-// ============================================================
-// Globale Funktionen (für onclick im HTML)
-// ============================================================
-window._deleteItem = function(id) {
-    const item = items.find(i => i.id === id);
-    if (item) deleteItem(item);
-};
-
-window._deleteChecked = function() {
-    deleteCheckedItems();
-};
-
-window._viewCode = function(id) {
-    const code = codes.find(c => c.id === id);
-    if (!code) return;
-    currentViewedCode = code;
-    const modal = document.getElementById("modal-image");
-    document.getElementById("image-fullview").src = code.imageData;
-    const store = code.store || "";
-    document.getElementById("image-title").textContent = store ? `${store} – ${code.name}` : code.name;
-    modal.classList.remove("hidden");
-};
 
 // ============================================================
 // UI Event Listeners
 // ============================================================
 document.addEventListener("DOMContentLoaded", () => {
+    // Offline-Status beim Start prüfen
+    if (!navigator.onLine) updateOnlineStatus(false);
+
     // Kategorie-Picker initial befüllen
     buildCategoryPicker();
 
@@ -1023,6 +1035,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const btn = document.getElementById("btn-copy-id");
             btn.textContent = "✓ Kopiert!";
             setTimeout(() => { btn.textContent = "Listen-ID kopieren"; }, 2000);
+        }).catch(() => {
+            const btn = document.getElementById("btn-copy-id");
+            btn.textContent = "Kopieren fehlgeschlagen";
+            setTimeout(() => { btn.textContent = "Listen-ID kopieren"; }, 2000);
         });
     });
 
@@ -1050,6 +1066,10 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("btn-join-list").addEventListener("click", () => {
         const id = inputJoinId.value.trim().toUpperCase();
         if (!id) return;
+        if (/[.#$\[\]\/]/.test(id)) {
+            alert("Ungültige Listen-ID. Erlaubt sind Buchstaben und Zahlen.");
+            return;
+        }
         setListId(id);
         inputJoinId.value = "";
         displayListId.textContent = id;
@@ -1158,12 +1178,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const btn = document.getElementById("btn-upload-code");
         btn.textContent = "Bild wird vorbereitet...";
         btn.disabled = true;
-        const imageData = await resizeImage(file, 1200, 1200);
-        const name = file.name.replace(/\.[^.]+$/, "") || "Code";
-        pendingUploadData = { name, imageData };
-        inputUpload.value = "";
-        // Laden-Auswahl zeigen
-        modalStore.classList.remove("hidden");
+        try {
+            const imageData = await resizeImage(file, 1200, 1200);
+            const name = file.name.replace(/\.[^.]+$/, "") || "Code";
+            pendingUploadData = { name, imageData };
+            inputUpload.value = "";
+            modalStore.classList.remove("hidden");
+        } catch (err) {
+            alert("Bild konnte nicht geladen werden. Bitte versuche ein anderes Bild.");
+            inputUpload.value = "";
+        }
+        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Bild hochladen`;
+        btn.disabled = false;
     });
 
     // Bild-Vollansicht
@@ -1194,6 +1220,9 @@ document.addEventListener("DOMContentLoaded", () => {
         modal.addEventListener("click", (e) => {
             if (e.target === modal) {
                 modal.classList.add("hidden");
+                // Eingabefelder zurücksetzen
+                if (modal === modalAdd) { inputName.value = ""; btnAddItem.disabled = true; }
+                if (modal === modalSettings) { inputJoinId.value = ""; }
             }
         });
     });
@@ -1219,7 +1248,12 @@ function showConfirm(title, message, okText, isDanger, onOk) {
         document.getElementById("btn-confirm-cancel").replaceWith(
             document.getElementById("btn-confirm-cancel").cloneNode(true)
         );
+        modal.removeEventListener("click", backdropHandler);
     };
+
+    function backdropHandler(e) {
+        if (e.target === modal) cleanup();
+    }
 
     document.getElementById("btn-confirm-ok").addEventListener("click", () => {
         cleanup();
@@ -1228,9 +1262,7 @@ function showConfirm(title, message, okText, isDanger, onOk) {
 
     document.getElementById("btn-confirm-cancel").addEventListener("click", cleanup);
 
-    modal.addEventListener("click", (e) => {
-        if (e.target === modal) cleanup();
-    });
+    modal.addEventListener("click", backdropHandler);
 }
 
 // ============================================================

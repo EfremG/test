@@ -455,30 +455,30 @@ function attachSwipeListeners() {
         }, { passive: true });
 
         row.addEventListener("touchend", (e) => {
-            // Wenn auf den Löschen-Button getippt wurde, nicht togglen
             if (e.target.closest(".item-delete")) return;
             touchHandled = true;
-            // Nur togglen wenn weder geswiped noch gescrollt wurde
             if (!swiping && !scrolling) {
-                // Wenn die Row geswiped ist, Swipe schliessen statt togglen
                 if (row.classList.contains("swiped")) {
                     row.classList.remove("swiped");
                     currentSwipedRow = null;
                     return;
                 }
-                const id = row.dataset.id;
-                const item = items.find(i => i.id === id);
-                if (item) toggleItem(item);
+                // Nur togglen wenn auf den Check-Kreis getippt wurde
+                if (e.target.closest(".check-circle")) {
+                    const id = row.dataset.id;
+                    const item = items.find(i => i.id === id);
+                    if (item) toggleItem(item);
+                }
             }
         });
 
-        // Desktop: Click zum Abhaken (nur wenn kein Touch)
+        // Desktop: Click zum Abhaken (nur auf Check-Kreis)
         row.addEventListener("click", (e) => {
             if (touchHandled) {
                 touchHandled = false;
                 return;
             }
-            if (e.target.closest(".item-delete")) return;
+            if (!e.target.closest(".check-circle")) return;
             const id = row.dataset.id;
             const item = items.find(i => i.id === id);
             if (item) toggleItem(item);

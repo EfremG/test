@@ -154,8 +154,8 @@ main {
 }
 
 .check-circle {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     border: 2px solid var(--text-secondary);
     flex-shrink: 0;
@@ -163,6 +163,11 @@ main {
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
+    cursor: pointer;
+    padding: 12px;
+    margin: -12px;
+    margin-right: 0;
+    box-sizing: content-box;
 }
 
 .item-row.checked .check-circle {

@@ -5,7 +5,7 @@
 // ============================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getDatabase, ref, onValue, set, update, remove }
+import { getDatabase, ref, onValue, set, update, remove, off }
     from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
@@ -196,15 +196,26 @@ onAuthStateChanged(auth, (user) => {
 // ============================================================
 let currentListener = null;
 let currentCodesListener = null;
+let currentOrderListener = null;
+
+function stopObserving() {
+    const listId = localStorage.getItem("prevListId");
+    if (listId) {
+        off(ref(db, `lists/${listId}/items`));
+        off(ref(db, `lists/${listId}/codes`));
+        off(ref(db, `lists/${listId}/categoryOrder`));
+    }
+}
 
 function startObserving() {
+    stopObserving();
     const listId = getListId();
+    localStorage.setItem("prevListId", listId);
 
     // Sofort aus Cache laden für schnellen Start / Offline
     const cachedItems = loadFromCache("items");
     if (cachedItems) { items = cachedItems; render(); }
-    const cachedCodes = loadFromCache("codes");
-    if (cachedCodes) { codes = cachedCodes; renderCodes(); }
+    // Codes nicht aus Cache laden (base64-Bilder zu groß für localStorage)
     const cachedOrder = loadFromCache("categoryOrder");
     if (cachedOrder && Array.isArray(cachedOrder)) {
         applyCategoryOrder(cachedOrder);
@@ -245,7 +256,7 @@ function startObserving() {
                 codes.push(val);
             }
         });
-        saveToCache("codes", codes);
+        // Codes nicht cachen (base64 zu groß für localStorage)
         renderCodes();
     });
 
@@ -367,7 +378,7 @@ function addCode(name, imageData, store) {
         createdAt: Date.now() / 1000
     };
     codes.push(code);
-    saveToCache("codes", codes);
+    // Codes nicht cachen (base64 zu groß für localStorage)
     renderCodes();
     const path = `lists/${listId}/codes/${id}`;
     if (isOnline) {
@@ -380,7 +391,7 @@ function addCode(name, imageData, store) {
 function deleteCode(codeItem) {
     const listId = getListId();
     codes = codes.filter(c => c.id !== codeItem.id);
-    saveToCache("codes", codes);
+    // Codes nicht cachen (base64 zu groß für localStorage)
     renderCodes();
     const path = `lists/${listId}/codes/${codeItem.id}`;
     if (isOnline) {
@@ -791,7 +802,10 @@ function buildCategoryPicker() {
         opt.innerHTML = `<span class="cat-dot" style="background:${cat.color}"></span>
             <span class="cat-name">${cat.key}</span>
             <span class="cat-check">✓</span>`;
+        let catTouchHandled = false;
+        opt.addEventListener("touchend", () => { catTouchHandled = true; });
         opt.addEventListener("click", () => {
+            if (opt.classList.contains("picker-dragging")) return;
             selectedCategory = cat.key;
             catList.querySelectorAll(".category-option").forEach(o => o.classList.remove("selected"));
             opt.classList.add("selected");

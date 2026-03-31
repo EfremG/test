@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Einkaufsliste">
+    <meta name="theme-color" content="#ffffff">
+    <title>Einkaufsliste</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Hauptbildschirm -->
+    <div id="app">
+        <div id="offline-indicator" class="offline-indicator hidden">Offline – Änderungen werden bei Verbindung synchronisiert</div>
+        <header>
+            <button id="btn-settings" class="header-btn" aria-label="Einstellungen">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+            <h1>Einkaufsliste</h1>
+            <div class="header-right">
+                <button id="btn-codes" class="header-btn" aria-label="Codes & Bilder">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                </button>
+                <button id="btn-add" class="header-btn primary" aria-label="Artikel hinzufügen">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <main id="list-container">
+            <!-- Wird dynamisch befüllt -->
+        </main>
+
+        <div id="empty-state" class="hidden">
+            <div class="empty-icon">🛒</div>
+            <p class="empty-title">Keine Artikel</p>
+            <p class="empty-subtitle">Tippe auf + um Artikel hinzuzufügen</p>
+            <p class="empty-list-id"></p>
+        </div>
+
+        <input type="file" id="input-code-upload" accept="image/*" class="hidden">
+    </div>
+
+    <!-- Artikel hinzufügen Modal -->
+    <div id="modal-add" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Neuer Artikel</h2>
+                <button id="btn-add-close" class="modal-close">Fertig</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <input type="text" id="input-item-name" placeholder="Artikel eingeben..." autocomplete="off" enterkeyhint="done">
+                </div>
+                <div class="category-picker">
+                    <p class="picker-label">Kategorie</p>
+                    <div id="category-list" class="category-list">
+                        <!-- Wird dynamisch befüllt -->
+                    </div>
+                </div>
+                <button id="btn-add-item" class="btn-primary" disabled>
+                    Hinzufügen
+                </button>
+                <p id="added-count" class="added-count hidden"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Einstellungen Modal -->
+    <div id="modal-settings" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Einstellungen</h2>
+                <button id="btn-settings-close" class="modal-close">Fertig</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h3>Aktuelle Liste</h3>
+                    <div class="list-id-display">
+                        <span>Listen-ID:</span>
+                        <strong id="display-list-id"></strong>
+                    </div>
+                    <button id="btn-copy-id" class="btn-secondary">
+                        Listen-ID kopieren
+                    </button>
+                    <button id="btn-share-id" class="btn-secondary">
+                        Listen-ID teilen
+                    </button>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Einer Liste beitreten</h3>
+                    <div class="input-group">
+                        <input type="text" id="input-join-id" placeholder="Listen-ID eingeben" autocomplete="off" style="text-transform: uppercase; font-family: monospace;">
+                    </div>
+                    <button id="btn-join-list" class="btn-secondary" disabled>
+                        Liste beitreten
+                    </button>
+                </div>
+
+                <div class="settings-section">
+                    <button id="btn-new-list" class="btn-secondary">
+                        Neue Liste erstellen
+                    </button>
+                </div>
+
+                <div class="settings-section danger">
+                    <button id="btn-delete-all" class="btn-danger">
+                        Alle Artikel löschen
+                    </button>
+                </div>
+
+                <div class="settings-section info">
+                    <p>Teile die Listen-ID mit deinem Partner, damit ihr beide die gleiche Einkaufsliste verwenden könnt. Alle Änderungen werden in Echtzeit synchronisiert.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Codes Modal -->
+    <div id="modal-codes" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Codes & Bilder</h2>
+                <button id="btn-codes-close" class="modal-close">Fertig</button>
+            </div>
+            <div class="modal-body">
+                <button id="btn-upload-code" class="btn-upload-code">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Bild hochladen
+                </button>
+                <div id="codes-list">
+                    <!-- Wird dynamisch befüllt (gruppiert nach Laden) -->
+                </div>
+                <div id="codes-empty" class="hidden">
+                    <p class="empty-subtitle" style="padding:24px 0;color:var(--text-secondary)">Lade QR-Codes, Gutscheine oder Kundenkarten hoch</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Laden-Auswahl Modal (beim Upload) -->
+    <div id="modal-store" class="modal hidden">
+        <div class="modal-content modal-store-content">
+            <div class="modal-header">
+                <h2>Laden wählen</h2>
+                <button id="btn-store-close" class="modal-close">Abbrechen</button>
+            </div>
+            <div class="modal-body">
+                <div id="store-list" class="store-list">
+                    <!-- Wird dynamisch befüllt -->
+                </div>
+                <div class="input-group" style="margin-top:12px">
+                    <input type="text" id="input-store-custom" placeholder="Anderer Laden..." autocomplete="off">
+                </div>
+                <button id="btn-store-custom-ok" class="btn-primary" disabled>Auswählen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bild-Vollansicht Modal -->
+    <div id="modal-image" class="modal hidden">
+        <div class="modal-image-content">
+            <div class="modal-image-header">
+                <button id="btn-image-close" class="modal-close">Schließen</button>
+                <span id="image-title" class="modal-image-title"></span>
+                <button id="btn-image-delete" class="modal-close" style="color:var(--danger)">Löschen</button>
+            </div>
+            <div class="modal-image-body">
+                <img id="image-fullview" src="" alt="Code">
+            </div>
+        </div>
+    </div>
+
+    <!-- Bestätigungs-Dialog -->
+    <div id="modal-confirm" class="modal hidden">
+        <div class="modal-content modal-confirm-content">
+            <h3 id="confirm-title"></h3>
+            <p id="confirm-message"></p>
+            <div class="confirm-buttons">
+                <button id="btn-confirm-cancel" class="btn-secondary">Abbrechen</button>
+                <button id="btn-confirm-ok" class="btn-danger">Löschen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-const CACHE_NAME = "einkaufsliste-v15";
+const CACHE_NAME = "einkaufsliste-v16";
 
 self.addEventListener("install", (event) => {
     self.skipWaiting();

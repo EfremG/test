@@ -417,8 +417,9 @@ function escapeHtml(text) {
 function attachSwipeListeners() {
     document.querySelectorAll(".item-row").forEach(row => {
         let startX = 0;
-        let currentX = 0;
+        let startY = 0;
         let swiping = false;
+        let scrolling = false;
         let touchHandled = false;
 
         row.addEventListener("touchstart", (e) => {
@@ -427,18 +428,27 @@ function attachSwipeListeners() {
                 currentSwipedRow.classList.remove("swiped");
             }
             startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
             swiping = false;
+            scrolling = false;
             touchHandled = false;
         }, { passive: true });
 
         row.addEventListener("touchmove", (e) => {
-            currentX = e.touches[0].clientX;
-            const diff = startX - currentX;
-            if (diff > 30) {
+            const diffX = startX - e.touches[0].clientX;
+            const diffY = Math.abs(e.touches[0].clientY - startY);
+
+            // Vertikales Scrollen erkennen
+            if (diffY > 10) {
+                scrolling = true;
+            }
+
+            // Horizontales Swipen erkennen
+            if (diffX > 30) {
                 swiping = true;
                 row.classList.add("swiped");
                 currentSwipedRow = row;
-            } else if (diff < -20) {
+            } else if (diffX < -20) {
                 row.classList.remove("swiped");
                 currentSwipedRow = null;
             }
@@ -448,7 +458,8 @@ function attachSwipeListeners() {
             // Wenn auf den Löschen-Button getippt wurde, nicht togglen
             if (e.target.closest(".item-delete")) return;
             touchHandled = true;
-            if (!swiping) {
+            // Nur togglen wenn weder geswiped noch gescrollt wurde
+            if (!swiping && !scrolling) {
                 // Wenn die Row geswiped ist, Swipe schliessen statt togglen
                 if (row.classList.contains("swiped")) {
                     row.classList.remove("swiped");

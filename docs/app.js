@@ -419,6 +419,7 @@ function attachSwipeListeners() {
         let startX = 0;
         let currentX = 0;
         let swiping = false;
+        let touchHandled = false;
 
         row.addEventListener("touchstart", (e) => {
             // Schließe vorherige Swipes
@@ -427,6 +428,7 @@ function attachSwipeListeners() {
             }
             startX = e.touches[0].clientX;
             swiping = false;
+            touchHandled = false;
         }, { passive: true });
 
         row.addEventListener("touchmove", (e) => {
@@ -445,6 +447,7 @@ function attachSwipeListeners() {
         row.addEventListener("touchend", (e) => {
             // Wenn auf den Löschen-Button getippt wurde, nicht togglen
             if (e.target.closest(".item-delete")) return;
+            touchHandled = true;
             if (!swiping) {
                 // Wenn die Row geswiped ist, Swipe schliessen statt togglen
                 if (row.classList.contains("swiped")) {
@@ -458,8 +461,12 @@ function attachSwipeListeners() {
             }
         });
 
-        // Desktop: Click zum Abhaken
+        // Desktop: Click zum Abhaken (nur wenn kein Touch)
         row.addEventListener("click", (e) => {
+            if (touchHandled) {
+                touchHandled = false;
+                return;
+            }
             if (e.target.closest(".item-delete")) return;
             const id = row.dataset.id;
             const item = items.find(i => i.id === id);
@@ -472,20 +479,13 @@ function attachSwipeListeners() {
             deleteBtn.addEventListener("touchend", (e) => {
                 e.stopPropagation();
                 e.preventDefault();
+                touchHandled = true;
                 const id = row.dataset.id;
                 const item = items.find(i => i.id === id);
                 if (item) deleteItem(item);
             });
         }
     });
-
-    // Tippen ausserhalb schliesst Swipe
-    document.addEventListener("touchstart", (e) => {
-        if (currentSwipedRow && !currentSwipedRow.contains(e.target)) {
-            currentSwipedRow.classList.remove("swiped");
-            currentSwipedRow = null;
-        }
-    }, { passive: true });
 }
 
 function attachSectionDrag(listContainer) {
@@ -773,6 +773,14 @@ window._viewCode = function(id) {
 document.addEventListener("DOMContentLoaded", () => {
     // Kategorie-Picker initial befüllen
     buildCategoryPicker();
+
+    // Globaler Listener: Tippen ausserhalb schliesst Swipe (einmalig)
+    document.addEventListener("touchstart", (e) => {
+        if (currentSwipedRow && !currentSwipedRow.contains(e.target)) {
+            currentSwipedRow.classList.remove("swiped");
+            currentSwipedRow = null;
+        }
+    }, { passive: true });
 
     // Artikel hinzufügen Modal
     const modalAdd = document.getElementById("modal-add");
